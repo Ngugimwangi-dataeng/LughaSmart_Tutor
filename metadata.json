@@ -1,0 +1,6 @@
+{
+  "name": "LughaSmart Tutor System",
+  "description": "Indigenous and national Kenyan language tutoring platform for foreigners and locals with role-based segregation, M-Pesa & Visa checkout, live sessions, PDF curriculum, audio pronunciation, and end-to-end encrypted communications.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
