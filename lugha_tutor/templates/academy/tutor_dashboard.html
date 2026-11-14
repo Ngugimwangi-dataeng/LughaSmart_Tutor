@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Tutor Portal — LughaSmart{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+  <div>
+    <span class="badge badge-green">Staff Tutor Portal (RBAC Verified)</span>
+    <h1 style="margin: 0.5rem 0 0;">Tutor Command Center</h1>
+  </div>
+</div>
+
+<div class="grid-2" style="margin-bottom: 1.5rem;">
+  <section class="card">
+    <h2 style="margin-top: 0;">Upload Catch-Up Audio &amp; PDF Notes</h2>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="upload_lesson" />
+      {% for field in lesson_form %}
+        <div class="field">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}
+            <div class="alert alert-error">{{ field.errors|striptags }}</div>
+          {% endif %}
+        </div>
+      {% endfor %}
+      <button type="submit" class="btn btn-primary">Upload to Private Storage</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2 style="margin-top: 0;">Schedule Live Session (Zoom / Meet / Jitsi)</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_session" />
+      {% for field in session_form %}
+        <div class="field">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}
+            <div class="alert alert-error">{{ field.errors|striptags }}</div>
+          {% endif %}
+        </div>
+      {% endfor %}
+      <button type="submit" class="btn btn-primary">Save Live Session</button>
+    </form>
+  </section>
+</div>
+
+<section class="card" style="margin-bottom: 1.5rem;">
+  <h2 style="margin-top: 0;">Live Session Controls (One-Click "Live Now" Switch)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Course</th>
+        <th>Session</th>
+        <th>Platform</th>
+        <th>Scheduled</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for session in sessions %}
+        <tr>
+          <td>{{ session.course.language_name }}</td>
+          <td><a href="{{ session.meeting_url }}" target="_blank" rel="noopener noreferrer">{{ session.title }}</a></td>
+          <td>{{ session.get_platform_display }}</td>
+          <td>{{ session.scheduled_at|date:"Y-m-d H:i" }}</td>
+          <td>
+            {% if session.is_live_now %}
+              <span class="badge badge-live">Live Now</span>
+            {% else %}
+              <span class="badge badge-amber">Scheduled</span>
+            {% endif %}
+          </td>
+          <td>
+            <form method="post" action="{% url 'academy:toggle_live_session' session.id %}">
+              {% csrf_token %}
+              <button type="submit" class="btn {% if session.is_live_now %}btn-danger{% else %}btn-primary{% endif %}">
+                {% if session.is_live_now %}End Live Switch{% else %}Go Live Now{% endif %}
+              </button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="muted">No live sessions scheduled yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2 style="margin-top: 0;">Paid Enrolled Students &amp; Live Readiness</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Student</th>
+        <th>Course</th>
+        <th>Channel</th>
+        <th>Paystack Ref</th>
+        <th>Paid (KES)</th>
+        <th>Live Readiness</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for enr in active_enrollments %}
+        <tr>
+          <td>{{ enr.student.get_full_name|default:enr.student.username }} ({{ enr.student.email }})</td>
+          <td>{{ enr.course.title }}</td>
+          <td>{{ enr.payment_channel|default:"paystack" }}</td>
+          <td><code>{{ enr.paystack_reference|default:"—" }}</code></td>
+          <td>KES {{ enr.amount_paid_kes }}</td>
+          <td>
+            {% if enr.is_ready_for_class %}
+              <span class="badge badge-green">Ready for Class</span>
+            {% else %}
+              <span class="badge badge-amber">Standby</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="muted">No paid enrollments yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

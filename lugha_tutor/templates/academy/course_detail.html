@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ course.title }} — LughaSmart{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1.25rem; flex-wrap: wrap;">
+    <div style="max-width: 700px;">
+      <span class="badge badge-amber">{{ course.language_name }} · {{ course.get_level_display }}</span>
+      <h1 style="margin: 0.6rem 0 0.5rem;">{{ course.title }}</h1>
+      <p class="muted">{{ course.description }}</p>
+      <p class="muted" style="margin-bottom: 0;">
+        Lead Tutor: <strong>{{ course.tutor.get_full_name|default:course.tutor.username }}</strong>
+      </p>
+    </div>
+
+    <div style="min-width: 240px;">
+      {% if has_access %}
+        <span class="badge badge-green" style="margin-bottom: 0.75rem;">Active Enrollment Verified</span>
+        {% if enrollment %}
+          <form method="post" action="{% url 'academy:toggle_ready_for_class' course.slug %}">
+            {% csrf_token %}
+            <button type="submit" class="btn {% if enrollment.is_ready_for_class %}btn-primary{% else %}btn-secondary{% endif %}" style="width: 100%;">
+              {% if enrollment.is_ready_for_class %}Ready for Live Class (On){% else %}Mark "I am Ready for Class"{% endif %}
+            </button>
+          </form>
+        {% endif %}
+      {% else %}
+        <div class="price" style="margin-bottom: 0.65rem;">KES {{ course.price_kes }}</div>
+        {% if user.is_authenticated %}
+          <form method="post" action="{% url 'academy:initiate_checkout' course.slug %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary" style="width: 100%;">
+              Pay via M-Pesa or Visa (Paystack)
+            </button>
+          </form>
+        {% else %}
+          <a class="btn btn-primary" style="width: 100%;" href="{% url 'academy:login' %}?next={{ request.path }}">
+            Sign In to Enroll (M-Pesa / Visa)
+          </a>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <section class="card">
+    <h2 style="margin-top: 0;">Curriculum &amp; Catch-Up Lessons</h2>
+    {% for lesson in lessons %}
+      <div style="padding: 0.85rem 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;">
+        <div>
+          <strong>Lesson {{ lesson.order }}: {{ lesson.title }}</strong>
+          <div class="muted">{{ lesson.duration_minutes }} min · {% if lesson.audio_file %}Audio{% endif %}{% if lesson.audio_file and lesson.pdf_notes %} + {% endif %}{% if lesson.pdf_notes %}PDF Notes{% endif %}</div>
+        </div>
+        {% if has_access %}
+          <a class="btn btn-secondary" href="{% url 'academy:lesson_view' course.slug lesson.id %}">Open</a>
+        {% else %}
+          <span class="badge badge-amber">Locked</span>
+        {% endif %}
+      </div>
+    {% empty %}
+      <p class="muted">Lessons will appear here once uploaded by the tutor.</p>
+    {% endfor %}
+  </section>
+
+  <section class="card">
+    <h2 style="margin-top: 0;">Live Tutoring Schedule</h2>
+    {% for session in live_sessions %}
+      <div style="padding: 0.85rem 0; border-bottom: 1px solid var(--border);">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+          <strong>{{ session.title }}</strong>
+          {% if session.is_live_now %}
+            <span class="badge badge-live">Live Now</span>
+          {% else %}
+            <span class="badge badge-amber">{{ session.get_platform_display }}</span>
+          {% endif %}
+        </div>
+        <div class="muted" style="margin: 0.35rem 0;">{{ session.scheduled_at|date:"D, M j · H:i" }} EAT</div>
+        {% if has_access %}
+          <a class="btn btn-primary" href="{{ session.meeting_url }}" target="_blank" rel="noopener noreferrer">
+            Join {{ session.get_platform_display }} Room
+          </a>
+        {% else %}
+          <span class="muted">Enroll to unlock live session link.</span>
+        {% endif %}
+      </div>
+    {% empty %}
+      <p class="muted">No live sessions scheduled yet.</p>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}

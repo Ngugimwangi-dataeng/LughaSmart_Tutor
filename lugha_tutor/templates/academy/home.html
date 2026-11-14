@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Courses — LughaSmart Kenyan Languages{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <span class="badge badge-green" style="margin-bottom: 0.85rem;">Kenya Local &amp; Indigenous Languages</span>
+  <h1>Speak Kiswahili, Gĩkũyũ, Dholuo, Maa &amp; Kalenjin with Confidence</h1>
+  <p>
+    Live tutor-led sessions on Zoom, Google Meet, or Jitsi plus downloadable-free, piracy-protected
+    MP3/WAV pronunciation recordings and PDF study notes for busy learners.
+  </p>
+</section>
+
+{% if live_now_sessions %}
+  <div class="card" style="margin-bottom: 1.75rem; border-color: #fecaca; background: #fff5f5;">
+    <span class="badge badge-live">Live Session Active Now</span>
+    <h2 style="margin: 0.6rem 0 0.5rem;">Active Classes Happening Right Now</h2>
+    <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+      {% for session in live_now_sessions %}
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+          <div>
+            <strong>{{ session.course.language_name }}</strong> — {{ session.title }} ({{ session.get_platform_display }})
+          </div>
+          <a class="btn btn-primary" href="{% url 'academy:course_detail' session.course.slug %}">Open Course Room</a>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
+<h2 style="margin-bottom: 1rem;">Available Language Courses</h2>
+<div class="grid">
+  {% for course in courses %}
+    <article class="card" style="display: flex; flex-direction: column; justify-content: space-between; gap: 1rem;">
+      <div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.65rem;">
+          <span class="badge badge-amber">{{ course.language_name }}</span>
+          {% if course.id in enrolled_course_ids %}
+            <span class="badge badge-green">Enrolled</span>
+          {% endif %}
+        </div>
+        <h3 style="margin: 0 0 0.45rem;">{{ course.title }}</h3>
+        <p class="muted" style="margin: 0 0 0.75rem;">{{ course.description|truncatewords:26 }}</p>
+        <p class="muted" style="margin: 0;">Tutor: <strong>{{ course.tutor.get_full_name|default:course.tutor.username }}</strong> · {{ course.get_level_display }}</p>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; border-top: 1px solid var(--border); padding-top: 0.9rem;">
+        <span class="price">KES {{ course.price_kes }}</span>
+        <a class="btn btn-primary" href="{% url 'academy:course_detail' course.slug %}">
+          {% if course.id in enrolled_course_ids %}Enter Classroom{% else %}View Syllabus{% endif %}
+        </a>
+      </div>
+    </article>
+  {% empty %}
+    <div class="card">
+      <p class="muted">No courses published yet. Log in as a Tutor or Admin to publish courses.</p>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

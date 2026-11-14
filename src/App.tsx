@@ -1,565 +1,773 @@
-import React, { useState, useEffect } from 'react';
-import { User, Course, Enrollment, AudioSubmission, SupportedLocale, UserRole, SecurityAuditLog } from './types';
-import { translations } from './i18n/translations';
+import React, { useEffect, useState } from 'react';
+import {
+  Course,
+  Enrollment,
+  SharedMaterial,
+  LanguageTest,
+  TestSubmission,
+  AudioSubmission,
+  TutorRating,
+  WordGameScore,
+  UserProfile,
+  PaymentMethod,
+  PlanType,
+  DailyLiveSession,
+  ClassEmailNotification,
+  SecurityAuditLog,
+} from './types';
+import {
+  SEED_COURSES,
+  SEED_ENROLLMENTS,
+  SEED_MATERIALS,
+  SEED_TESTS,
+  SEED_TEST_SUBMISSIONS,
+  SEED_AUDIO_SUBMISSIONS,
+  SEED_RATINGS,
+  SEED_LIVE_SESSIONS,
+  SEED_EMAIL_NOTIFICATIONS,
+} from './data/seedData';
 import { Navbar } from './components/Navbar';
-import { PublicLanding } from './components/PublicLanding';
-import { StudentDashboard } from './components/StudentDashboard';
-import { StudentProgress } from './components/StudentProgress';
-import { TutorDashboard } from './components/TutorDashboard';
-import { LiveSessionRoom } from './components/LiveSessionRoom';
-import { AudioPronunciationStudio } from './components/AudioPronunciationStudio';
-import { CurriculumPdfViewer } from './components/CurriculumPdfViewer';
+import { LandingPage } from './components/LandingPage';
+import { StudentEnrollmentArea } from './components/StudentEnrollmentArea';
+import { TutorWorkspace } from './components/TutorWorkspace';
+import { TutorAdminGate } from './components/TutorAdminGate';
 import { CheckoutModal } from './components/CheckoutModal';
-import { DatabaseInspector } from './components/DatabaseInspector';
-import { ScalabilityModal } from './components/ScalabilityModal';
-import { MobileDeviceFrame } from './components/MobileDeviceFrame';
+import { AuthModal } from './components/AuthModal';
 
-// Sample Users
-const STUDENT_USER: User = {
-  id: 1,
-  full_name: 'John Miller (Expat Learner)',
-  email: 'john.miller@example.com',
-  password_hash: 'scrypt:sha256$hashed$student',
-  role: 'student',
-  avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
-  created_at: '2026-03-01 10:24:00',
-};
-
-const TUTOR_USER: User = {
-  id: 2,
-  full_name: 'Dr. Amina Wambui (Senior Linguist)',
-  email: 'amina.wambui@lughasmart.ac.ke',
-  password_hash: 'scrypt:sha256$hashed$tutor',
-  role: 'tutor',
-  avatar_url: '/src/assets/images/tutor_amina_avatar_1794473845671.jpg',
-  created_at: '2026-01-15 08:00:00',
-};
-
-// Initial Fallback Courses matching PostgreSQL Schema
-const INITIAL_COURSES: Course[] = [
+const INITIAL_USERS: UserProfile[] = [
   {
-    id: 101,
-    title: 'Conversational Kiswahili for Foreigners & Expats',
-    language_name: 'Swahili (Kiswahili)',
-    description: 'Master everyday conversational Swahili, greetings, market bargaining, transport navigation, and cultural etiquette across Kenya and East Africa.',
-    price_kes: 4500.00,
-    course_type: 'live',
-    level: 'Beginner to Intermediate',
-    lessons_count: 12,
-    duration_weeks: 4,
-    pdf_curriculum_name: 'LughaSmart_Swahili_Conversational_Curriculum_v3.pdf',
-    tutor_name: 'Dr. Amina Wambui',
+    uid: 'demo-student-1',
+    fullName: 'John Miller',
+    email: 'john.miller@example.com',
+    password: 'password123',
+    role: 'student',
+    isAdmin: false,
+    isSuspended: false,
+    createdAt: '2026-11-01',
   },
   {
-    id: 102,
-    title: 'Gĩkũyũ Indigenous Heritage & Business Dialect',
-    language_name: 'Kikuyu (Gĩkũyũ)',
-    description: 'Comprehensive oral mastery, tonal pronunciation guides, central Kenya commerce vocabulary, kinship terms, and native proverb wisdom.',
-    price_kes: 5200.00,
-    course_type: 'audio',
-    level: 'Foundational',
-    lessons_count: 10,
-    duration_weeks: 5,
-    pdf_curriculum_name: 'Kikuyu_Phonetics_Pronunciation_Manual.pdf',
-    tutor_name: 'Mwalimu James Mwangi',
+    uid: 'tutor-amina-01',
+    fullName: 'Dr. Amina Wambui',
+    email: 'amina.wambui@lughasmart.ac.ke',
+    password: 'password123',
+    role: 'tutor',
+    isAdmin: true,
+    isSuspended: false,
+    adminPin: '202688',
+    createdAt: '2026-01-15',
   },
-  {
-    id: 103,
-    title: 'Dholuo Intensive: Lake Region Social & Cultural Immersion',
-    language_name: 'Luo (Dholuo)',
-    description: 'Deep dive into Luo syntax, greeting rituals, conversational flow, melodic inflections, and vibrant socio-cultural idioms for Western Kenya travelers.',
-    price_kes: 4800.00,
-    course_type: 'live',
-    level: 'Beginner',
-    lessons_count: 12,
-    duration_weeks: 4,
-    pdf_curriculum_name: 'Dholuo_Grammar_and_Conversation_Guide.pdf',
-    tutor_name: 'Otieno Kevin Ochieng',
-  },
-  {
-    id: 104,
-    title: 'Maa (Maasai) Cultural Dialogue & Wildlife Community Relations',
-    language_name: 'Maasai (Maa)',
-    description: 'Specialized language program for conservationists, eco-tourists, researchers, and safari travelers working alongside indigenous Maasai pastoral communities.',
-    price_kes: 6000.00,
-    course_type: 'pdf',
-    level: 'Essential Field Guide',
-    lessons_count: 8,
-    duration_weeks: 3,
-    pdf_curriculum_name: 'Maasai_Community_Field_Language_Guide.pdf',
-    tutor_name: 'Saitoti Ole Kaelo',
-  },
-  {
-    id: 105,
-    title: 'Kalenjin Tonal Phonics & Rift Valley Social Traditions',
-    language_name: 'Kalenjin (Nandi/Kipsigis)',
-    description: 'Explore the rhythmic tones and communal greetings of the Kalenjin languages spoken in Kenya’s fertile Great Rift Valley highlands.',
-    price_kes: 4600.00,
-    course_type: 'audio',
-    level: 'Foundational',
-    lessons_count: 8,
-    duration_weeks: 4,
-    pdf_curriculum_name: 'Kalenjin_Highland_Dialect_Handbook.pdf',
-    tutor_name: 'Faith Chebet',
-  },
-  {
-    id: 106,
-    title: 'Kikamba Express: Eastern Kenya Trade & Friendly Colloquialisms',
-    language_name: 'Kamba (Kikamba)',
-    description: 'Learn rapid trade colloquialisms, polite phrasing, and artisan community communications for Machakos, Kitui, and Makueni travelers.',
-    price_kes: 3800.00,
-    course_type: 'live',
-    level: 'Beginner',
-    lessons_count: 6,
-    duration_weeks: 2,
-    pdf_curriculum_name: 'Kikamba_Conversational_Phrases.pdf',
-    tutor_name: 'Boniface Mutua',
-  }
 ];
 
+const INITIAL_AUDIT_LOGS: SecurityAuditLog[] = [
+  {
+    id: 'audit-init-1',
+    timestamp: '2026-11-14 08:00',
+    actorEmail: 'amina.wambui@lughasmart.ac.ke',
+    actorRole: 'tutor_admin',
+    endpoint: '/tutor-admin',
+    action: 'SYSTEM_BOOT_POLICY',
+    httpStatus: 200,
+    details: 'Isolated Tutor & Admin portal enabled. Student RBAC isolation enforced.',
+  },
+];
+
+function isTutorAdminUrl(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.location.hash === '#/tutor-admin' ||
+    window.location.pathname === '/tutor-admin'
+  );
+}
+
 export default function App() {
-  // Navigation & Role State
-  const [currentTab, setCurrentTab] = useState<string>('courses');
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole>('student');
-  const [currentUser, setCurrentUser] = useState<User>(STUDENT_USER);
-  const [locale, setLocale] = useState<SupportedLocale>('en');
-  const [viewMode, setViewMode] = useState<'web' | 'mobile'>('web');
-
-  // Application Data State
-  const [courses, setCourses] = useState<Course[]>(INITIAL_COURSES);
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([
-    {
-      id: 1,
-      student_id: 1,
-      course_id: 101,
-      payment_status: 'completed',
-      is_ready_for_class: true,
-      enrolled_at: '2026-03-02 11:15:00',
-      payment_method: 'mpesa',
-      transaction_ref: 'MPESA_QK8820XPLM',
-      course: INITIAL_COURSES[0],
-    }
-  ]);
-  const [audioSubmissions, setAudioSubmissions] = useState<AudioSubmission[]>([
-    {
-      id: 'sub_01',
-      student_id: 1,
-      course_id: 101,
-      phrase: 'Habari gani? Jina langu ni John.',
-      language: 'Kiswahili',
-      audio_url: 'data:audio/wav;base64,sample',
-      accuracy_score: 94,
-      feedback: 'Excellent vocal inflection! Soften the "r" in "Habari" slightly for authentic coastal cadence.',
-      submitted_at: '2026-03-08 14:20:00',
-    }
-  ]);
-  const [auditLogs, setAuditLogs] = useState<SecurityAuditLog[]>([
-    {
-      id: 'audit_01',
-      timestamp: '2026-03-08 10:14:22',
-      user_email: 'john.miller@example.com',
-      role: 'student',
-      endpoint: '/student/dashboard',
-      action: 'VIEW_COURSE_LESSONS',
-      status: '200_OK',
-      details: 'Authorized student access granted to enrolled course 101.'
-    }
-  ]);
-
-  // Modals & Active Viewers
+  const [registeredUsers, setRegisteredUsers] = useState<UserProfile[]>(INITIAL_USERS);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [activeView, setActiveView] = useState<'landing' | 'enrollment' | 'tutor' | 'tutor_gate'>(
+    () => (isTutorAdminUrl() ? 'tutor_gate' : 'landing')
+  );
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const [pendingEnrollCourse, setPendingEnrollCourse] = useState<Course | null>(null);
   const [checkoutCourse, setCheckoutCourse] = useState<Course | null>(null);
-  const [selectedCourseForPdf, setSelectedCourseForPdf] = useState<Course>(INITIAL_COURSES[0]);
-  const [selectedCourseForLive, setSelectedCourseForLive] = useState<Course>(INITIAL_COURSES[0]);
-  const [showDatabaseInspector, setShowDatabaseInspector] = useState(false);
-  const [showScalabilityModal, setShowScalabilityModal] = useState(false);
+  const [checkoutCompleted, setCheckoutCompleted] = useState(false);
 
-  // Sync user role
-  useEffect(() => {
-    if (currentUserRole === 'student') {
-      setCurrentUser(STUDENT_USER);
-    } else {
-      setCurrentUser(TUTOR_USER);
-    }
-  }, [currentUserRole]);
+  const [courses] = useState<Course[]>(SEED_COURSES);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>(SEED_ENROLLMENTS);
+  const [liveSessions, setLiveSessions] = useState<DailyLiveSession[]>(SEED_LIVE_SESSIONS);
+  const [emailNotifications, setEmailNotifications] = useState<ClassEmailNotification[]>(
+    SEED_EMAIL_NOTIFICATIONS
+  );
+  const [materials, setMaterials] = useState<SharedMaterial[]>(SEED_MATERIALS);
+  const [tests, setTests] = useState<LanguageTest[]>(SEED_TESTS);
+  const [testSubmissions, setTestSubmissions] = useState<TestSubmission[]>(SEED_TEST_SUBMISSIONS);
+  const [audioSubmissions, setAudioSubmissions] = useState<AudioSubmission[]>(SEED_AUDIO_SUBMISSIONS);
+  const [ratings, setRatings] = useState<TutorRating[]>(SEED_RATINGS);
+  const [wordGameScores, setWordGameScores] = useState<WordGameScore[]>([]);
+  const [auditLogs, setAuditLogs] = useState<SecurityAuditLog[]>(INITIAL_AUDIT_LOGS);
 
-  // Fetch initial state from Express backend if available
-  useEffect(() => {
-    async function fetchServerState() {
-      try {
-        const res = await fetch('/api/courses');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.courses && data.courses.length > 0) {
-            setCourses(data.courses);
-          }
-        }
-      } catch (e) {
-        // Run with initial state
-      }
-    }
-    fetchServerState();
-  }, []);
+  const userRole = currentUser?.role || 'student';
 
-  // Toggle "I am Ready for Class"
-  const handleToggleReadiness = async (courseId: number, isReady: boolean) => {
-    try {
-      await fetch('/api/student/readiness', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          student_id: currentUser.id,
-          course_id: courseId,
-          is_ready: isReady,
-        }),
-      });
-    } catch {
-      // Local state fallback
-    }
-
-    setEnrollments(prev =>
-      prev.map(enr => {
-        if (enr.course_id === courseId && enr.student_id === currentUser.id) {
-          return { ...enr, is_ready_for_class: isReady };
-        }
-        return enr;
-      })
-    );
-  };
-
-  // Payment Success Handler
-  const handlePaymentSuccess = (courseId: number, method: 'mpesa' | 'visa', receiptRef: string) => {
-    const targetCourse = courses.find(c => c.id === courseId) || INITIAL_COURSES[0];
-    const newEnrollment: Enrollment = {
-      id: enrollments.length + 1,
-      student_id: currentUser.id,
-      course_id: courseId,
-      payment_status: 'completed',
-      is_ready_for_class: true,
-      enrolled_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      payment_method: method,
-      transaction_ref: receiptRef,
-      course: targetCourse,
-    };
-
-    setEnrollments(prev => {
-      const exists = prev.find(e => e.course_id === courseId && e.student_id === currentUser.id);
-      if (exists) {
-        return prev.map(e => e.course_id === courseId ? newEnrollment : e);
-      }
-      return [newEnrollment, ...prev];
-    });
-
-    setAuditLogs(prev => [
+  const appendAuditLog = ({
+    actorEmail,
+    actorRole,
+    endpoint = '/tutor-admin',
+    action,
+    httpStatus,
+    details,
+  }: {
+    actorEmail: string;
+    actorRole: string;
+    endpoint?: string;
+    action: string;
+    httpStatus: number;
+    details: string;
+  }) => {
+    setAuditLogs((prev) => [
       {
-        id: 'audit_' + Date.now(),
-        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
-        user_email: currentUser.email,
-        role: currentUser.role,
-        endpoint: `/checkout/${courseId}`,
-        action: method === 'mpesa' ? 'DARAJA_PAYMENT_VERIFIED' : 'VISA_SETTLED',
-        status: '200_OK',
-        details: `Instant enrollment activated for course #${courseId} via ${method}. Receipt: ${receiptRef}`,
+        id: `audit-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        timestamp: new Date().toISOString().slice(0, 16).replace('T', ' '),
+        actorEmail,
+        actorRole,
+        endpoint,
+        action,
+        httpStatus,
+        details,
       },
       ...prev,
     ]);
   };
 
-  // Tutor update curriculum PDF
-  const handleUpdateCurriculumPdf = async (courseId: number, pdfName: string, notes: string) => {
-    try {
-      await fetch('/api/tutor/curriculum/update-pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-role': currentUser.role,
-          'x-user-email': currentUser.email,
-        },
-        body: JSON.stringify({ course_id: courseId, pdf_name: pdfName, notes }),
-      });
-    } catch {
-      // Local fallback
-    }
-
-    setCourses(prev =>
-      prev.map(c => c.id === courseId ? { ...c, pdf_curriculum_name: pdfName } : c)
-    );
-  };
-
-  // Submit audio pronunciation from student
-  const handleSubmitAudio = async (phrase: string, language: string, audioUrl: string): Promise<AudioSubmission> => {
-    let newSub: AudioSubmission = {
-      id: 'sub_' + Date.now(),
-      student_id: currentUser.id,
-      course_id: 101,
-      phrase,
-      language,
-      audio_url: audioUrl,
-      accuracy_score: 93,
-      feedback: 'Native speech synthesis match verified. Tutor review pending.',
-      submitted_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+  // Sync isolated #/tutor-admin route and block any student probe
+  useEffect(() => {
+    const syncRoute = () => {
+      if (isTutorAdminUrl()) {
+        if (currentUser && currentUser.role === 'tutor' && currentUser.isAdmin) {
+          setActiveView('tutor');
+        } else {
+          if (currentUser && currentUser.role === 'student') {
+            appendAuditLog({
+              actorEmail: currentUser.email,
+              actorRole: 'student',
+              endpoint: '/tutor-admin',
+              action: 'UNAUTHORIZED_ADMIN_PROBE',
+              httpStatus: 403,
+              details: `Blocked student (${currentUser.fullName}) from accessing isolated Tutor/Admin portal.`,
+            });
+          }
+          setActiveView('tutor_gate');
+        }
+      }
     };
 
-    try {
-      const res = await fetch('/api/audio/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          student_id: currentUser.id,
-          course_id: 101,
-          phrase,
-          language,
-          audio_base64: audioUrl,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.submission) newSub = data.submission;
-      }
-    } catch {
-      // Use local
-    }
+    window.addEventListener('hashchange', syncRoute);
+    window.addEventListener('popstate', syncRoute);
+    return () => {
+      window.removeEventListener('hashchange', syncRoute);
+      window.removeEventListener('popstate', syncRoute);
+    };
+  }, [currentUser]);
 
-    setAudioSubmissions(prev => [newSub, ...prev]);
-    return newSub;
+  const openIsolatedTutorPortal = () => {
+    if (window.location.hash !== '#/tutor-admin') {
+      window.location.hash = '#/tutor-admin';
+    }
+    if (currentUser && currentUser.role === 'tutor' && currentUser.isAdmin) {
+      setActiveView('tutor');
+    } else {
+      if (currentUser && currentUser.role === 'student') {
+        appendAuditLog({
+          actorEmail: currentUser.email,
+          actorRole: 'student',
+          endpoint: '/tutor-admin',
+          action: 'UNAUTHORIZED_ADMIN_PROBE',
+          httpStatus: 403,
+          details: `Blocked student (${currentUser.fullName}) from accessing isolated Tutor/Admin portal.`,
+        });
+      }
+      setActiveView('tutor_gate');
+    }
   };
 
-  // Tutor reply to audio
-  const handleSubmitAudioFeedback = async (submissionId: string, feedbackText: string) => {
-    try {
-      await fetch('/api/tutor/audio-feedback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-role': currentUser.role,
-        },
-        body: JSON.stringify({ submission_id: submissionId, feedback_text: feedbackText }),
-      });
-    } catch {
-      // Local fallback
+  const clearAdminHashAndGoLanding = () => {
+    if (window.location.hash === '#/tutor-admin') {
+      window.history.replaceState(null, '', window.location.pathname || '/');
     }
+    setActiveView('landing');
+  };
 
-    setAudioSubmissions(prev =>
-      prev.map(s => s.id === submissionId ? { ...s, feedback: feedbackText } : s)
+  // Enforce student registration & login before enrollment
+  const handleRequestEnroll = (course: Course) => {
+    if (!currentUser) {
+      setPendingEnrollCourse(course);
+      setAuthNotice('Please register or log in as a Student first to enroll in a course.');
+      setShowAuthModal(true);
+      return;
+    }
+    if (currentUser.role === 'tutor') {
+      return;
+    }
+    setCheckoutCompleted(false);
+    setCheckoutCourse(course);
+  };
+
+  const handleNavigate = (view: 'landing' | 'enrollment' | 'tutor') => {
+    if (view === 'landing') {
+      clearAdminHashAndGoLanding();
+      return;
+    }
+    if (view === 'enrollment') {
+      if (window.location.hash === '#/tutor-admin') {
+        window.history.replaceState(null, '', window.location.pathname || '/');
+      }
+      if (!currentUser) {
+        setAuthNotice('Please register or log in to view your Enrollment Area.');
+        setShowAuthModal(true);
+        return;
+      }
+      if (currentUser.role === 'tutor') {
+        setActiveView('tutor');
+        return;
+      }
+      setActiveView('enrollment');
+      return;
+    }
+    if (view === 'tutor') {
+      if (!currentUser || currentUser.role !== 'tutor' || !currentUser.isAdmin) {
+        if (currentUser && currentUser.role === 'student') {
+          appendAuditLog({
+            actorEmail: currentUser.email,
+            actorRole: 'student',
+            endpoint: '/tutor-admin',
+            action: 'UNAUTHORIZED_DASHBOARD_ACCESS',
+            httpStatus: 403,
+            details: `Student ${currentUser.email} attempted to open Tutor/Admin console.`,
+          });
+        }
+        setActiveView('tutor_gate');
+        return;
+      }
+      setActiveView('tutor');
+    }
+  };
+
+  const handleRegisterStudent = (newUser: UserProfile) => {
+    setRegisteredUsers((prev) => [...prev, newUser]);
+    appendAuditLog({
+      actorEmail: newUser.email,
+      actorRole: 'student',
+      endpoint: '/api/auth/register',
+      action: 'STUDENT_REGISTERED',
+      httpStatus: 201,
+      details: `New student registered: ${newUser.fullName}.`,
+    });
+  };
+
+  const handleStudentLoginSuccess = (user: UserProfile) => {
+    if (user.role !== 'student') return;
+    setCurrentUser(user);
+    setAuthNotice(null);
+
+    if (pendingEnrollCourse) {
+      setCheckoutCompleted(false);
+      setCheckoutCourse(pendingEnrollCourse);
+      setPendingEnrollCourse(null);
+    } else {
+      setActiveView('enrollment');
+    }
+  };
+
+  const handleAdminLoginSuccess = (adminUser: UserProfile) => {
+    if (adminUser.role !== 'tutor' || !adminUser.isAdmin) return;
+    setPendingEnrollCourse(null);
+    setCheckoutCourse(null);
+    setCurrentUser(adminUser);
+    setActiveView('tutor');
+  };
+
+  const handleSignOut = () => {
+    if (currentUser?.role === 'tutor') {
+      appendAuditLog({
+        actorEmail: currentUser.email,
+        actorRole: 'tutor_admin',
+        endpoint: '/tutor-admin',
+        action: 'ADMIN_SIGN_OUT',
+        httpStatus: 200,
+        details: `Administrator ${currentUser.fullName} signed out.`,
+      });
+    }
+    setCurrentUser(null);
+    setPendingEnrollCourse(null);
+    setCheckoutCourse(null);
+    clearAdminHashAndGoLanding();
+  };
+
+  const handleToggleUserSuspended = (uid: string) => {
+    if (!currentUser || currentUser.role !== 'tutor' || !currentUser.isAdmin) return;
+    setRegisteredUsers((prev) =>
+      prev.map((u) => {
+        if (u.uid !== uid || u.role === 'tutor') return u;
+        const nextSuspended = !u.isSuspended;
+        appendAuditLog({
+          actorEmail: currentUser.email,
+          actorRole: 'tutor_admin',
+          endpoint: '/tutor-admin/users',
+          action: nextSuspended ? 'STUDENT_SUSPENDED' : 'STUDENT_REACTIVATED',
+          httpStatus: 200,
+          details: `${nextSuspended ? 'Suspended' : 'Reactivated'} student account ${u.email}.`,
+        });
+        return { ...u, isSuspended: nextSuspended };
+      })
     );
   };
 
-  // Build ready students list for Tutor
-  const readyStudentsForTutor = enrollments
-    .filter(e => e.payment_status === 'completed')
-    .map(e => ({
-      enrollment_id: e.id,
-      student: e.student_id === 1 ? STUDENT_USER : { ...STUDENT_USER, id: e.student_id, full_name: 'Sarah Chen' },
-      course: e.course || courses.find(c => c.id === e.course_id) || courses[0],
-      is_ready: e.is_ready_for_class,
-      enrolled_at: e.enrolled_at,
-      payment_method: e.payment_method,
-      transaction_ref: e.transaction_ref,
-    }));
+  const handleCreateTutorAccount = ({
+    fullName,
+    email,
+    password,
+    adminPin,
+  }: {
+    fullName: string;
+    email: string;
+    password: string;
+    adminPin: string;
+  }) => {
+    if (!currentUser || currentUser.role !== 'tutor' || !currentUser.isAdmin) return;
+    if (registeredUsers.some((u) => u.email.toLowerCase() === email.toLowerCase())) return;
+    const newTutor: UserProfile = {
+      uid: `tutor-${Date.now()}`,
+      fullName,
+      email,
+      password,
+      role: 'tutor',
+      isAdmin: true,
+      isSuspended: false,
+      adminPin,
+      createdAt: new Date().toISOString().slice(0, 10),
+    };
+    setRegisteredUsers((prev) => [...prev, newTutor]);
+    appendAuditLog({
+      actorEmail: currentUser.email,
+      actorRole: 'tutor_admin',
+      endpoint: '/tutor-admin/provision',
+      action: 'TUTOR_ADMIN_PROVISIONED',
+      httpStatus: 201,
+      details: `Authorized new Tutor & Admin account for ${email}.`,
+    });
+  };
+
+  const handleCompleteEnrollment = ({
+    course,
+    planType,
+    amountKes,
+    paymentMethod,
+    transactionRef,
+  }: {
+    course: Course;
+    planType: PlanType;
+    amountKes: number;
+    paymentMethod: PaymentMethod;
+    transactionRef: string;
+  }) => {
+    if (!currentUser || currentUser.role !== 'student') return;
+
+    const newEnrollment: Enrollment = {
+      id: `enr-${Date.now()}`,
+      studentUid: currentUser.uid,
+      studentName: currentUser.fullName,
+      studentEmail: currentUser.email,
+      courseId: course.id,
+      courseTitle: course.title,
+      languageName: course.languageName,
+      audience: course.audience,
+      planType,
+      amountKes,
+      paymentMethod,
+      transactionRef,
+      paymentStatus: 'completed',
+      jitsiRoomUrl: `https://meet.jit.si/${course.jitsiRoomName}`,
+      preferredSlot:
+        course.audience === 'adult'
+          ? 'Tue & Thu · 18:00 - 21:00 EAT (3-Hr Adult Session)'
+          : 'Sat · 10:00 - 11:00 EAT (1-Hr Children Interactive)',
+      isReadyForClass: true,
+      modulesCompletedCount: 0,
+      totalModules: course.modules.length,
+      completedModuleIds: [],
+      testScoreAvg: 0,
+      enrolledAt: new Date().toISOString().slice(0, 10),
+      updatedAt: new Date().toISOString().slice(0, 10),
+    };
+
+    setEnrollments((prev) => {
+      const existingIdx = prev.findIndex(
+        (e) => e.courseId === course.id && e.studentUid === currentUser.uid
+      );
+      if (existingIdx >= 0) {
+        const copy = [...prev];
+        copy[existingIdx] = {
+          ...copy[existingIdx],
+          planType,
+          amountKes,
+          paymentMethod,
+          transactionRef,
+          paymentStatus: 'completed',
+          updatedAt: new Date().toISOString().slice(0, 10),
+        };
+        return copy;
+      }
+      return [newEnrollment, ...prev];
+    });
+    setCheckoutCompleted(true);
+    appendAuditLog({
+      actorEmail: currentUser.email,
+      actorRole: 'student',
+      endpoint: '/api/payments/checkout',
+      action: 'PAYMENT_COMPLETED',
+      httpStatus: 200,
+      details: `${paymentMethod.toUpperCase()} KES ${amountKes} (${transactionRef}) for ${course.languageName}.`,
+    });
+  };
+
+  const handleToggleReady = (enrollmentId: string) => {
+    setEnrollments((prev) =>
+      prev.map((e) => (e.id === enrollmentId ? { ...e, isReadyForClass: !e.isReadyForClass } : e))
+    );
+  };
+
+  const handleToggleModuleComplete = (enrollmentId: string, moduleId: string) => {
+    setEnrollments((prev) =>
+      prev.map((e) => {
+        if (e.id !== enrollmentId) return e;
+        const exists = e.completedModuleIds.includes(moduleId);
+        const nextIds = exists
+          ? e.completedModuleIds.filter((id) => id !== moduleId)
+          : [...e.completedModuleIds, moduleId];
+        return {
+          ...e,
+          completedModuleIds: nextIds,
+          modulesCompletedCount: nextIds.length,
+        };
+      })
+    );
+  };
+
+  const handleSubmitTest = (
+    test: LanguageTest,
+    selectedAnswers: Record<string, number>
+  ): TestSubmission => {
+    const student = currentUser!;
+    let correct = 0;
+    test.questions.forEach((q) => {
+      if (selectedAnswers[q.id] === q.correctIndex) correct += 1;
+    });
+    const scorePercent = Math.round((correct / test.questions.length) * 100);
+
+    const submission: TestSubmission = {
+      id: `ts-${Date.now()}`,
+      testId: test.id,
+      testTitle: test.title,
+      courseId: test.courseId,
+      languageName: test.languageName,
+      studentUid: student.uid,
+      studentName: student.fullName,
+      scorePercent,
+      correctCount: correct,
+      totalCount: test.questions.length,
+      submittedAt: new Date().toISOString().slice(0, 10),
+    };
+
+    setTestSubmissions((prev) => [submission, ...prev]);
+    setEnrollments((prev) =>
+      prev.map((e) =>
+        e.courseId === test.courseId && e.studentUid === student.uid
+          ? { ...e, testScoreAvg: scorePercent }
+          : e
+      )
+    );
+    return submission;
+  };
+
+  const handleSubmitAudio = (courseId: string, language: string, phrase: string, score: number) => {
+    if (!currentUser) return;
+    const sub: AudioSubmission = {
+      id: `aud-${Date.now()}`,
+      studentUid: currentUser.uid,
+      studentName: currentUser.fullName,
+      courseId,
+      language,
+      phrase,
+      accuracyScore: score,
+      tutorFeedback: '',
+      submittedAt: new Date().toISOString().slice(0, 10),
+      updatedAt: new Date().toISOString().slice(0, 10),
+    };
+    setAudioSubmissions((prev) => [sub, ...prev]);
+  };
+
+  const handleSubmitRating = (ratingData: Omit<TutorRating, 'id' | 'createdAt'>) => {
+    setRatings((prev) => [
+      {
+        ...ratingData,
+        id: `rat-${Date.now()}`,
+        createdAt: new Date().toISOString().slice(0, 10),
+      },
+      ...prev,
+    ]);
+  };
+
+  const handleSaveWordGameScore = (languageName: string, score: number, pairsMatched: number) => {
+    if (!currentUser) return;
+    setWordGameScores((prev) => [
+      {
+        id: `wg-${Date.now()}`,
+        studentUid: currentUser.uid,
+        studentName: currentUser.fullName,
+        languageName,
+        score,
+        pairsMatched,
+        playedAt: new Date().toISOString().slice(0, 10),
+      },
+      ...prev,
+    ]);
+  };
+
+  const handleVerifyEnrollment = (enrollmentId: string, status: 'completed' | 'revoked') => {
+    if (!currentUser || currentUser.role !== 'tutor' || !currentUser.isAdmin) return;
+    setEnrollments((prev) =>
+      prev.map((e) => (e.id === enrollmentId ? { ...e, paymentStatus: status } : e))
+    );
+    appendAuditLog({
+      actorEmail: currentUser.email,
+      actorRole: 'tutor_admin',
+      endpoint: '/tutor-admin/enrollments',
+      action: status === 'revoked' ? 'ENROLLMENT_REVOKED' : 'ENROLLMENT_VERIFIED',
+      httpStatus: 200,
+      details: `Updated enrollment ${enrollmentId} payment status to ${status}.`,
+    });
+  };
+
+  const handleAddOrUpdateLiveSession = (
+    sessData: Omit<DailyLiveSession, 'id' | 'updatedAt'>
+  ) => {
+    if (!currentUser || currentUser.role !== 'tutor' || !currentUser.isAdmin) return;
+    setLiveSessions((prev) => [
+      {
+        ...sessData,
+        id: `sess-${Date.now()}`,
+        updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      },
+      ...prev,
+    ]);
+  };
+
+  const handleUpdateSessionStatus = (sessionId: string, status: DailyLiveSession['status']) => {
+    if (!currentUser || currentUser.role !== 'tutor' || !currentUser.isAdmin) return;
+    setLiveSessions((prev) =>
+      prev.map((s) =>
+        s.id === sessionId
+          ? { ...s, status, updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' ') }
+          : s
+      )
+    );
+  };
+
+  const handleSendClassEmail = (emailData: Omit<ClassEmailNotification, 'id' | 'sentAt'>) => {
+    if (!currentUser || currentUser.role !== 'tutor' || !currentUser.isAdmin) return;
+    setEmailNotifications((prev) => [
+      {
+        ...emailData,
+        id: `email-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        sentAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      },
+      ...prev,
+    ]);
+  };
+
+  const handleAddMaterial = (mat: Omit<SharedMaterial, 'id' | 'createdAt'>) => {
+    if (!currentUser || currentUser.role !== 'tutor' || !currentUser.isAdmin) return;
+    setMaterials((prev) => [
+      {
+        ...mat,
+        id: `mat-${Date.now()}`,
+        createdAt: new Date().toISOString().slice(0, 10),
+      },
+      ...prev,
+    ]);
+  };
+
+  const handleCreateTest = (test: Omit<LanguageTest, 'id' | 'createdAt'>) => {
+    if (!currentUser || currentUser.role !== 'tutor' || !currentUser.isAdmin) return;
+    setTests((prev) => [
+      {
+        ...test,
+        id: `test-${Date.now()}`,
+        createdAt: new Date().toISOString().slice(0, 10),
+      },
+      ...prev,
+    ]);
+  };
+
+  const handleFeedbackAudio = (submissionId: string, feedback: string) => {
+    if (!currentUser || currentUser.role !== 'tutor' || !currentUser.isAdmin) return;
+    setAudioSubmissions((prev) =>
+      prev.map((s) => (s.id === submissionId ? { ...s, tutorFeedback: feedback } : s))
+    );
+  };
+
+  const activeStudentEnrollments = enrollments.filter(
+    (e) => currentUser && e.studentUid === currentUser.uid
+  );
+
+  const isVerifiedAdmin = Boolean(
+    currentUser && currentUser.role === 'tutor' && currentUser.isAdmin
+  );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans">
-      
-      {/* Top Bar Contract Header */}
+    <div className="min-h-screen bg-[#FAFAF8] text-[#18181B] flex flex-col">
       <Navbar
-        currentTab={currentTab}
-        setCurrentTab={setCurrentTab}
-        currentUserRole={currentUserRole}
-        setCurrentUserRole={setCurrentUserRole}
-        locale={locale}
-        setLocale={setLocale}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        onOpenCheckout={(cId) => {
-          const c = courses.find(x => x.id === (cId || 101)) || courses[0];
-          setCheckoutCourse(c);
+        activeView={activeView}
+        onNavigate={handleNavigate}
+        userRole={userRole}
+        currentUser={currentUser}
+        onOpenAuth={() => {
+          setAuthNotice(null);
+          setShowAuthModal(true);
         }}
-        onOpenDatabase={() => setShowDatabaseInspector(true)}
-        onOpenScalability={() => setShowScalabilityModal(true)}
+        onSignOut={handleSignOut}
+        onEnrollNow={() => handleRequestEnroll(courses[0])}
       />
 
-      {/* Main Content Area */}
       <main className="flex-1">
-        
-        {viewMode === 'mobile' ? (
-          /* Mobile Application Mode */
-          <MobileDeviceFrame
-            user={currentUser}
+        {activeView === 'landing' && (
+          <LandingPage
             courses={courses}
-            enrollments={enrollments}
-            audioSubmissions={audioSubmissions}
-            locale={locale}
-            currentUserRole={currentUserRole}
-            onEnroll={(cId) => {
-              const c = courses.find(x => x.id === cId) || courses[0];
-              setCheckoutCourse(c);
-            }}
-            onToggleReadiness={handleToggleReadiness}
-            onLaunchLive={(course) => {
-              setSelectedCourseForLive(course);
-              setCurrentTab('live_session');
-            }}
-            onOpenAudio={(course) => {
-              setSelectedCourseForLive(course);
-              setCurrentTab('audio_studio');
-            }}
-            onOpenPdf={(course) => {
-              setSelectedCourseForPdf(course);
-              setCurrentTab('curriculum_pdf');
-            }}
+            ratings={ratings}
+            onEnrollCourse={handleRequestEnroll}
+            onGoToEnrollment={() => handleNavigate('enrollment')}
           />
-        ) : (
-          /* Desktop Web Mode */
-          <>
-            {currentTab === 'courses' && (
-              <PublicLanding
-                courses={courses}
-                locale={locale}
-                onEnroll={(cId) => {
-                  const c = courses.find(x => x.id === cId) || courses[0];
-                  setCheckoutCourse(c);
-                }}
-                onViewCurriculum={(course) => {
-                  setSelectedCourseForPdf(course);
-                  setCurrentTab('curriculum_pdf');
-                }}
-                onGoToStudentDashboard={() => setCurrentTab('student_dashboard')}
-              />
-            )}
-
-            {currentTab === 'student_dashboard' && (
-              <StudentDashboard
-                user={currentUser}
-                enrollments={enrollments}
-                courses={courses}
-                locale={locale}
-                onToggleReadiness={handleToggleReadiness}
-                onLaunchLiveSession={(course) => {
-                  setSelectedCourseForLive(course);
-                  setCurrentTab('live_session');
-                }}
-                onOpenAudioStudio={(course) => {
-                  setSelectedCourseForLive(course);
-                  setCurrentTab('audio_studio');
-                }}
-                onOpenCurriculumPdf={(course) => {
-                  setSelectedCourseForPdf(course);
-                  setCurrentTab('curriculum_pdf');
-                }}
-                onEnrollNewCourse={() => setCurrentTab('courses')}
-              />
-            )}
-
-            {currentTab === 'student_progress' && (
-              <StudentProgress
-                user={currentUser}
-                enrollments={enrollments}
-                courses={courses}
-                audioSubmissions={audioSubmissions}
-                locale={locale}
-                onOpenReceipt={(enr) => {
-                  const c = enr.course || courses.find(x => x.id === enr.course_id) || courses[0];
-                  setCheckoutCourse(c);
-                }}
-              />
-            )}
-
-            {currentTab === 'tutor_console' && (
-              <TutorDashboard
-                currentUser={currentUser}
-                courses={courses}
-                readyStudents={readyStudentsForTutor}
-                audioSubmissions={audioSubmissions}
-                auditLogs={auditLogs}
-                locale={locale}
-                onLaunchLiveSession={(course) => {
-                  setSelectedCourseForLive(course);
-                  setCurrentTab('live_session');
-                }}
-                onUpdateCurriculumPdf={handleUpdateCurriculumPdf}
-                onSubmitAudioFeedback={handleSubmitAudioFeedback}
-              />
-            )}
-
-            {currentTab === 'live_session' && (
-              <LiveSessionRoom
-                course={selectedCourseForLive}
-                currentUser={currentUser}
-                locale={locale}
-                onLeaveSession={() => setCurrentTab('student_dashboard')}
-              />
-            )}
-
-            {currentTab === 'audio_studio' && (
-              <AudioPronunciationStudio
-                course={selectedCourseForLive}
-                locale={locale}
-                audioSubmissions={audioSubmissions}
-                onSubmitAudio={handleSubmitAudio}
-              />
-            )}
-
-            {currentTab === 'curriculum_pdf' && (
-              <CurriculumPdfViewer
-                course={selectedCourseForPdf}
-                locale={locale}
-                onBack={() => setCurrentTab('courses')}
-                onEnrollCourse={(cId) => {
-                  const c = courses.find(x => x.id === cId) || courses[0];
-                  setCheckoutCourse(c);
-                }}
-              />
-            )}
-          </>
         )}
 
+        {activeView === 'enrollment' && currentUser && currentUser.role === 'student' && (
+          <StudentEnrollmentArea
+            currentUser={currentUser}
+            courses={courses}
+            enrollments={activeStudentEnrollments}
+            liveSessions={liveSessions}
+            emailNotifications={emailNotifications}
+            materials={materials}
+            tests={tests}
+            testSubmissions={testSubmissions}
+            audioSubmissions={audioSubmissions}
+            onEnrollCourse={handleRequestEnroll}
+            onToggleReady={handleToggleReady}
+            onToggleModuleComplete={handleToggleModuleComplete}
+            onSubmitTest={handleSubmitTest}
+            onSubmitAudio={handleSubmitAudio}
+            onSubmitRating={handleSubmitRating}
+            onSaveWordGameScore={handleSaveWordGameScore}
+          />
+        )}
+
+        {/* Separate isolated Tutor & Admin Authentication Portal */}
+        {activeView === 'tutor_gate' && (
+          <TutorAdminGate
+            currentUser={currentUser}
+            registeredUsers={registeredUsers}
+            onAdminLoginSuccess={handleAdminLoginSuccess}
+            onLogSecurityEvent={({ actorEmail, actorRole, action, httpStatus, details }) =>
+              appendAuditLog({
+                actorEmail,
+                actorRole,
+                endpoint: '/tutor-admin',
+                action,
+                httpStatus,
+                details,
+              })
+            }
+            onBackToLanding={clearAdminHashAndGoLanding}
+          />
+        )}
+
+        {/* Tutor & Admin Console strictly mounted ONLY when verified Tutor/Admin session exists */}
+        {activeView === 'tutor' && isVerifiedAdmin && (
+          <TutorWorkspace
+            currentUser={currentUser}
+            users={registeredUsers}
+            auditLogs={auditLogs}
+            courses={courses}
+            enrollments={enrollments}
+            liveSessions={liveSessions}
+            emailNotifications={emailNotifications}
+            materials={materials}
+            tests={tests}
+            audioSubmissions={audioSubmissions}
+            ratings={ratings}
+            wordGameScores={wordGameScores}
+            onVerifyEnrollment={handleVerifyEnrollment}
+            onAddOrUpdateLiveSession={handleAddOrUpdateLiveSession}
+            onUpdateSessionStatus={handleUpdateSessionStatus}
+            onSendClassEmail={handleSendClassEmail}
+            onAddMaterial={handleAddMaterial}
+            onCreateTest={handleCreateTest}
+            onFeedbackAudio={handleFeedbackAudio}
+            onToggleUserSuspended={handleToggleUserSuspended}
+            onCreateTutorAccount={handleCreateTutorAccount}
+          />
+        )}
       </main>
 
-      {/* Checkout Modal with Safaricom Daraja & Visa */}
-      {checkoutCourse && (
+      {checkoutCourse && currentUser && currentUser.role === 'student' && (
         <CheckoutModal
           course={checkoutCourse}
-          locale={locale}
-          onClose={() => setCheckoutCourse(null)}
-          onPaymentSuccess={handlePaymentSuccess}
+          onClose={() => {
+            setCheckoutCourse(null);
+            if (checkoutCompleted) {
+              setActiveView('enrollment');
+            }
+          }}
+          onCompleteEnrollment={handleCompleteEnrollment}
         />
       )}
 
-      {/* PostgreSQL Database Architecture & Query Inspector Modal */}
-      {showDatabaseInspector && (
-        <DatabaseInspector
-          users={[STUDENT_USER, TUTOR_USER]}
-          courses={courses}
-          enrollments={enrollments}
-          onClose={() => setShowDatabaseInspector(false)}
+      {showAuthModal && (
+        <AuthModal
+          registeredUsers={registeredUsers}
+          initialNotice={authNotice}
+          onClose={() => {
+            setShowAuthModal(false);
+            setAuthNotice(null);
+          }}
+          onRegisterStudent={handleRegisterStudent}
+          onStudentLoginSuccess={handleStudentLoginSuccess}
         />
       )}
 
-      {/* 10,000+ Concurrent User Scalability Blueprint Modal */}
-      {showScalabilityModal && (
-        <ScalabilityModal
-          onClose={() => setShowScalabilityModal(false)}
-        />
-      )}
-
-      {/* Footer */}
-      <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6 text-xs text-slate-500 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-900 dark:text-white">LughaSmart Tutor System</span>
-            <span>·</span>
-            <span>Nairobi Studio & Indigenous Languages Faculty</span>
+      <footer className="border-t border-[#E5E3DC] bg-white py-6 text-xs text-[#71717A]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <span className="font-semibold text-[#18181B]">LughaSmart Language Academy</span>
+            <span className="mx-2">·</span>
+            <span>Kenyan Local & Global Languages</span>
           </div>
-
-          <div className="flex items-center gap-4 text-[11px]">
-            <span>PostgreSQL Schema Validated</span>
+          <div className="flex items-center gap-4">
+            <span>Adult 3-Hr & Children 1-Hr Live Jitsi Sessions</span>
             <span>·</span>
-            <span>Safaricom Daraja STK Push</span>
-            <span>·</span>
-            <span>AES-256 E2EE Verified</span>
+            <span>M-Pesa & Visa</span>
+            {/* Hidden from authenticated students so students have zero visibility into Tutor/Admin portal */}
+            {(!currentUser || isVerifiedAdmin) && (
+              <>
+                <span>·</span>
+                <button
+                  onClick={openIsolatedTutorPortal}
+                  className="text-[#71717A] hover:text-[#18181B] underline-offset-2 hover:underline cursor-pointer"
+                >
+                  Staff & Admin Portal
+                </button>
+              </>
+            )}
           </div>
         </div>
       </footer>
-
     </div>
   );
 }

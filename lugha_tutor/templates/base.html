@@ -1,0 +1,54 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}LughaSmart — Kenyan Languages Academy{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="{% url 'academy:home' %}">
+        <span class="brand-mark">LS</span>
+        <span>LughaSmart Kenya</span>
+      </a>
+      <nav class="nav-links">
+        <a href="{% url 'academy:home' %}">Courses</a>
+        {% if user.is_authenticated %}
+          {% if user.is_staff %}
+            <a href="{% url 'academy:tutor_dashboard' %}">Tutor Portal</a>
+          {% endif %}
+          <span class="muted">Hi, {{ user.get_full_name|default:user.username }}</span>
+          <form method="post" action="{% url 'academy:logout' %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="link-btn">Log Out</button>
+          </form>
+        {% else %}
+          <a href="{% url 'academy:login' %}">Sign In</a>
+          <a class="btn btn-primary" href="{% url 'academy:register' %}">Create Student Account</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+
+  <main class="container main-content">
+    {% if messages %}
+      <div class="messages">
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      LughaSmart Kenyan Languages Tutoring Platform · PostgreSQL + Paystack (M-Pesa &amp; Visa in KES) · Protected Private Media
+    </div>
+  </footer>
+</body>
+</html>

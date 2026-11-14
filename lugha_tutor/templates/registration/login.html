@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Sign In — LughaSmart{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 460px; margin: 2rem auto;">
+  <h1 style="margin-top: 0;">Sign In</h1>
+  <p class="muted">Access your enrolled Kenyan language lessons, catch-up audio, and live classes.</p>
+  <form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="alert alert-error">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <div class="field">
+      <label for="{{ form.username.id_for_label }}">Username</label>
+      {{ form.username }}
+    </div>
+    <div class="field">
+      <label for="{{ form.password.id_for_label }}">Password</label>
+      {{ form.password }}
+    </div>
+    <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
+  </form>
+  <p class="muted" style="margin-top: 1rem;">
+    New learner? <a href="{% url 'academy:register' %}">Create a student account</a>.
+  </p>
+</div>
+{% endblock %}
